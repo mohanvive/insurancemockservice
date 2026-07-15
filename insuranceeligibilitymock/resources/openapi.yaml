@@ -1,0 +1,769 @@
+openapi: 3.0.3
+info:
+  title: Insurance Eligibility Mock API
+  description: >
+    A mock HTTP service for checking patient insurance eligibility,
+    retrieving insurance plan details, and managing insurance claims.
+  version: 0.1.0
+  contact:
+    name: InsuranceMockService
+
+servers:
+  - url: http://localhost:8290/insurance
+    description: Local development server
+
+tags:
+  - name: Eligibility
+    description: Patient insurance eligibility operations
+  - name: Plans
+    description: Insurance plan detail operations
+  - name: Claims
+    description: Insurance claims operations
+
+paths:
+  /eligibility/{patientId}:
+    get:
+      tags:
+        - Eligibility
+      summary: Get patient insurance eligibility
+      description: Returns the current insurance eligibility status and details for a given patient.
+      operationId: getEligibility
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          description: Unique identifier of the patient (e.g. P001)
+          schema:
+            type: string
+            example: P001
+      responses:
+        "200":
+          description: Eligibility record found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EligibilityResponse'
+              example:
+                patientId: P001
+                patientName: Alice Johnson
+                insurerId: INS001
+                insurerName: BlueCross BlueShield
+                memberId: BCB-100234
+                groupNumber: GRP-5521
+                status: ACTIVE
+                effectiveDate: "2025-01-01"
+                terminationDate: "2025-12-31"
+                planId: PLAN-GOLD-001
+                planName: Gold PPO Plan
+                primaryInsurance: true
+        "404":
+          description: Patient eligibility record not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: PATIENT_NOT_FOUND
+                message: "No eligibility record found for patient: P999"
+
+  /eligibility/verify:
+    post:
+      tags:
+        - Eligibility
+      summary: Submit an eligibility verification request
+      description: Verifies a patient's insurance eligibility based on the provided member details.
+      operationId: verifyEligibility
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EligibilityVerifyRequest'
+            example:
+              patientId: P001
+              patientName: Alice Johnson
+              dateOfBirth: "1985-04-12"
+              insurerId: INS001
+              memberId: BCB-100234
+              groupNumber: GRP-5521
+              serviceDate: "2026-07-15"
+      responses:
+        "200":
+          description: Eligibility verification result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EligibilityVerifyResponse'
+              example:
+                verificationId: VER-A1B2C3D4
+                patientId: P001
+                status: ACTIVE
+                verifiedAt: "2026-07-15T20:00:00Z"
+                message: "Eligibility verified. Patient is ACTIVE under plan Gold PPO Plan."
+                planId: PLAN-GOLD-001
+        "400":
+          description: Invalid request payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /plans/{planId}:
+    get:
+      tags:
+        - Plans
+      summary: Get insurance plan details
+      description: Returns full details of an insurance plan including coverage breakdown by service type.
+      operationId: getPlanDetails
+      parameters:
+        - name: planId
+          in: path
+          required: true
+          description: Unique identifier of the insurance plan (e.g. PLAN-GOLD-001)
+          schema:
+            type: string
+            example: PLAN-GOLD-001
+      responses:
+        "200":
+          description: Plan details found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlanResponse'
+              example:
+                planId: PLAN-GOLD-001
+                planName: Gold PPO Plan
+                planType: PPO
+                insurerId: INS001
+                insurerName: BlueCross BlueShield
+                networkType: In-Network
+                effectiveDate: "2025-01-01"
+                renewalDate: "2025-12-31"
+                monthlyPremium: 520.00
+                coverageDetails:
+                  - serviceType: Primary Care
+                    coinsurancePercent: 10.0
+                    deductible: 500.00
+                    deductibleMet: 250.00
+                    outOfPocketMax: 3000.00
+                    outOfPocketMet: 750.00
+                    copay: 20.00
+                    requiresReferral: false
+                    requiresPreAuth: false
+        "404":
+          description: Plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: PLAN_NOT_FOUND
+                message: "No plan found with ID: PLAN-UNKNOWN"
+
+  /claims/{patientId}:
+    get:
+      tags:
+        - Claims
+      summary: Get all claims for a patient
+      description: Returns a summary list of all insurance claims submitted for a given patient.
+      operationId: getPatientClaims
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          description: Unique identifier of the patient (e.g. P001)
+          schema:
+            type: string
+            example: P002
+      responses:
+        "200":
+          description: List of claim summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClaimSummary'
+              example:
+                - claimId: CLM-2025-0018
+                  patientId: P002
+                  providerId: PRV-002
+                  providerName: Downtown Family Clinic
+                  serviceDate: "2025-02-14"
+                  submittedDate: "2025-02-20"
+                  status: PAID
+                  totalBilled: 250.00
+                  totalPaid: 140.00
+        "404":
+          description: No claims found for the patient
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: NO_CLAIMS_FOUND
+                message: "No claims found for patient: P999"
+
+  /claims/detail/{claimId}:
+    get:
+      tags:
+        - Claims
+      summary: Get detailed information for a specific claim
+      description: Returns the full detail of a single insurance claim including all line items.
+      operationId: getClaimDetail
+      parameters:
+        - name: claimId
+          in: path
+          required: true
+          description: Unique identifier of the claim (e.g. CLM-2025-0001)
+          schema:
+            type: string
+            example: CLM-2025-0001
+      responses:
+        "200":
+          description: Claim detail found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimDetail'
+              example:
+                claimId: CLM-2025-0001
+                patientId: P001
+                memberId: BCB-100234
+                providerId: PRV-001
+                providerName: City Medical Center
+                serviceDate: "2025-03-10"
+                submittedDate: "2025-03-15"
+                status: PAID
+                diagnosisCode: J06.9
+                totalBilled: 350.00
+                totalAllowed: 280.00
+                totalPaid: 224.00
+                patientResponsibility: 56.00
+                denialReason: ""
+                claimItems:
+                  - procedureCode: "99213"
+                    description: Office Visit - Established Patient
+                    billedAmount: 200.00
+                    allowedAmount: 160.00
+                    paidAmount: 128.00
+        "404":
+          description: Claim not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: CLAIM_NOT_FOUND
+                message: "No claim found with ID: CLM-UNKNOWN"
+
+  /claims:
+    post:
+      tags:
+        - Claims
+      summary: Submit a new insurance claim
+      description: Submits a new insurance claim for a patient. The claim is stored in-memory and immediately retrievable.
+      operationId: submitClaim
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClaimSubmitRequest'
+            example:
+              patientId: P001
+              memberId: BCB-100234
+              providerId: PRV-007
+              providerName: Westside Dermatology
+              serviceDate: "2026-07-10"
+              diagnosisCode: L70.0
+              claimItems:
+                - procedureCode: "99213"
+                  description: Office Visit - Established Patient
+                  billedAmount: 180.00
+                  allowedAmount: 0.00
+                  paidAmount: 0.00
+                - procedureCode: "17000"
+                  description: Destruction of Premalignant Lesion
+                  billedAmount: 320.00
+                  allowedAmount: 0.00
+                  paidAmount: 0.00
+      responses:
+        "201":
+          description: Claim submitted successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClaimSubmitResponse'
+              example:
+                claimId: CLM-F3A9B2C1
+                patientId: P001
+                status: SUBMITTED
+                submittedDate: "2026-07-15T20:00:00Z"
+                message: "Claim CLM-F3A9B2C1 submitted successfully and is pending review."
+        "400":
+          description: Invalid claim request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                code: INVALID_REQUEST
+                message: Claim must contain at least one claim item.
+
+components:
+  schemas:
+    EligibilityStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - INACTIVE
+        - PENDING
+        - TERMINATED
+      description: Current insurance eligibility status of the patient
+
+    EligibilityResponse:
+      type: object
+      required:
+        - patientId
+        - patientName
+        - insurerId
+        - insurerName
+        - memberId
+        - groupNumber
+        - status
+        - effectiveDate
+        - terminationDate
+        - planId
+        - planName
+        - primaryInsurance
+      properties:
+        patientId:
+          type: string
+          description: Unique patient identifier
+        patientName:
+          type: string
+          description: Full name of the patient
+        insurerId:
+          type: string
+          description: Unique identifier of the insurer
+        insurerName:
+          type: string
+          description: Name of the insurance company
+        memberId:
+          type: string
+          description: Insurance member ID
+        groupNumber:
+          type: string
+          description: Insurance group number
+        status:
+          $ref: '#/components/schemas/EligibilityStatus'
+        effectiveDate:
+          type: string
+          format: date
+          description: Date the coverage became effective (YYYY-MM-DD)
+        terminationDate:
+          type: string
+          format: date
+          description: Date the coverage terminates (YYYY-MM-DD)
+        planId:
+          type: string
+          description: Identifier of the associated insurance plan
+        planName:
+          type: string
+          description: Name of the associated insurance plan
+        primaryInsurance:
+          type: boolean
+          description: Whether this is the patient's primary insurance
+
+    EligibilityVerifyRequest:
+      type: object
+      required:
+        - patientId
+        - patientName
+        - dateOfBirth
+        - insurerId
+        - memberId
+        - groupNumber
+        - serviceDate
+      properties:
+        patientId:
+          type: string
+          description: Unique patient identifier
+        patientName:
+          type: string
+          description: Full name of the patient
+        dateOfBirth:
+          type: string
+          format: date
+          description: Patient date of birth (YYYY-MM-DD)
+        insurerId:
+          type: string
+          description: Unique identifier of the insurer
+        memberId:
+          type: string
+          description: Insurance member ID
+        groupNumber:
+          type: string
+          description: Insurance group number
+        serviceDate:
+          type: string
+          format: date
+          description: Date of the intended service (YYYY-MM-DD)
+
+    EligibilityVerifyResponse:
+      type: object
+      required:
+        - verificationId
+        - patientId
+        - status
+        - verifiedAt
+        - message
+        - planId
+      properties:
+        verificationId:
+          type: string
+          description: Unique identifier for this verification transaction
+        patientId:
+          type: string
+          description: Unique patient identifier
+        status:
+          $ref: '#/components/schemas/EligibilityStatus'
+        verifiedAt:
+          type: string
+          format: date-time
+          description: Timestamp when the verification was performed
+        message:
+          type: string
+          description: Human-readable verification result message
+        planId:
+          type: string
+          description: Identifier of the matched insurance plan (empty if not found)
+
+    CoverageDetail:
+      type: object
+      required:
+        - serviceType
+        - coinsurancePercent
+        - deductible
+        - deductibleMet
+        - outOfPocketMax
+        - outOfPocketMet
+        - copay
+        - requiresReferral
+        - requiresPreAuth
+      properties:
+        serviceType:
+          type: string
+          description: Type of medical service (e.g. Primary Care, Specialist)
+        coinsurancePercent:
+          type: number
+          format: double
+          description: Patient coinsurance percentage after deductible
+        deductible:
+          type: number
+          format: double
+          description: Annual deductible amount in USD
+        deductibleMet:
+          type: number
+          format: double
+          description: Amount of deductible already met in USD
+        outOfPocketMax:
+          type: number
+          format: double
+          description: Annual out-of-pocket maximum in USD
+        outOfPocketMet:
+          type: number
+          format: double
+          description: Amount of out-of-pocket maximum already met in USD
+        copay:
+          type: number
+          format: double
+          description: Fixed copay amount per visit in USD
+        requiresReferral:
+          type: boolean
+          description: Whether a referral is required for this service type
+        requiresPreAuth:
+          type: boolean
+          description: Whether prior authorization is required for this service type
+
+    PlanResponse:
+      type: object
+      required:
+        - planId
+        - planName
+        - planType
+        - insurerId
+        - insurerName
+        - networkType
+        - effectiveDate
+        - renewalDate
+        - monthlyPremium
+        - coverageDetails
+      properties:
+        planId:
+          type: string
+          description: Unique plan identifier
+        planName:
+          type: string
+          description: Display name of the plan
+        planType:
+          type: string
+          description: Plan type (PPO, HMO, EPO, etc.)
+          example: PPO
+        insurerId:
+          type: string
+          description: Unique identifier of the insurer
+        insurerName:
+          type: string
+          description: Name of the insurance company
+        networkType:
+          type: string
+          description: Network type (In-Network, Out-of-Network)
+        effectiveDate:
+          type: string
+          format: date
+          description: Plan effective date (YYYY-MM-DD)
+        renewalDate:
+          type: string
+          format: date
+          description: Plan renewal date (YYYY-MM-DD)
+        monthlyPremium:
+          type: number
+          format: double
+          description: Monthly premium cost in USD
+        coverageDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/CoverageDetail'
+          description: Coverage breakdown by service type
+
+    ClaimStatus:
+      type: string
+      enum:
+        - SUBMITTED
+        - IN_REVIEW
+        - APPROVED
+        - DENIED
+        - PAID
+        - APPEALED
+      description: Current processing status of the claim
+
+    ClaimItem:
+      type: object
+      required:
+        - procedureCode
+        - description
+        - billedAmount
+        - allowedAmount
+        - paidAmount
+      properties:
+        procedureCode:
+          type: string
+          description: CPT procedure code
+          example: "99213"
+        description:
+          type: string
+          description: Description of the procedure
+        billedAmount:
+          type: number
+          format: double
+          description: Amount billed by the provider in USD
+        allowedAmount:
+          type: number
+          format: double
+          description: Amount allowed by the insurer in USD
+        paidAmount:
+          type: number
+          format: double
+          description: Amount paid by the insurer in USD
+
+    ClaimSummary:
+      type: object
+      required:
+        - claimId
+        - patientId
+        - providerId
+        - providerName
+        - serviceDate
+        - submittedDate
+        - status
+        - totalBilled
+        - totalPaid
+      properties:
+        claimId:
+          type: string
+          description: Unique claim identifier
+        patientId:
+          type: string
+          description: Unique patient identifier
+        providerId:
+          type: string
+          description: Unique provider identifier
+        providerName:
+          type: string
+          description: Name of the healthcare provider
+        serviceDate:
+          type: string
+          format: date
+          description: Date the service was rendered (YYYY-MM-DD)
+        submittedDate:
+          type: string
+          description: Date the claim was submitted
+        status:
+          $ref: '#/components/schemas/ClaimStatus'
+        totalBilled:
+          type: number
+          format: double
+          description: Total amount billed in USD
+        totalPaid:
+          type: number
+          format: double
+          description: Total amount paid by insurer in USD
+
+    ClaimDetail:
+      type: object
+      required:
+        - claimId
+        - patientId
+        - memberId
+        - providerId
+        - providerName
+        - serviceDate
+        - submittedDate
+        - status
+        - diagnosisCode
+        - totalBilled
+        - totalAllowed
+        - totalPaid
+        - patientResponsibility
+        - denialReason
+        - claimItems
+      properties:
+        claimId:
+          type: string
+          description: Unique claim identifier
+        patientId:
+          type: string
+          description: Unique patient identifier
+        memberId:
+          type: string
+          description: Insurance member ID
+        providerId:
+          type: string
+          description: Unique provider identifier
+        providerName:
+          type: string
+          description: Name of the healthcare provider
+        serviceDate:
+          type: string
+          format: date
+          description: Date the service was rendered (YYYY-MM-DD)
+        submittedDate:
+          type: string
+          description: Date the claim was submitted
+        status:
+          $ref: '#/components/schemas/ClaimStatus'
+        diagnosisCode:
+          type: string
+          description: ICD-10 diagnosis code
+          example: J06.9
+        totalBilled:
+          type: number
+          format: double
+          description: Total amount billed in USD
+        totalAllowed:
+          type: number
+          format: double
+          description: Total amount allowed by insurer in USD
+        totalPaid:
+          type: number
+          format: double
+          description: Total amount paid by insurer in USD
+        patientResponsibility:
+          type: number
+          format: double
+          description: Amount the patient is responsible for in USD
+        denialReason:
+          type: string
+          description: Reason for denial (empty if not denied)
+        claimItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClaimItem'
+          description: Individual line items within the claim
+
+    ClaimSubmitRequest:
+      type: object
+      required:
+        - patientId
+        - memberId
+        - providerId
+        - providerName
+        - serviceDate
+        - diagnosisCode
+        - claimItems
+      properties:
+        patientId:
+          type: string
+          description: Unique patient identifier
+        memberId:
+          type: string
+          description: Insurance member ID
+        providerId:
+          type: string
+          description: Unique provider identifier
+        providerName:
+          type: string
+          description: Name of the healthcare provider
+        serviceDate:
+          type: string
+          format: date
+          description: Date the service was rendered (YYYY-MM-DD)
+        diagnosisCode:
+          type: string
+          description: ICD-10 diagnosis code
+        claimItems:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/ClaimItem'
+          description: One or more claim line items
+
+    ClaimSubmitResponse:
+      type: object
+      required:
+        - claimId
+        - patientId
+        - status
+        - submittedDate
+        - message
+      properties:
+        claimId:
+          type: string
+          description: Newly assigned claim identifier
+        patientId:
+          type: string
+          description: Unique patient identifier
+        status:
+          $ref: '#/components/schemas/ClaimStatus'
+        submittedDate:
+          type: string
+          description: Timestamp when the claim was submitted
+        message:
+          type: string
+          description: Confirmation message
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          example: PATIENT_NOT_FOUND
+        message:
+          type: string
+          description: Human-readable error description

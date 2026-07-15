@@ -1,0 +1,3 @@
+- org: mohandemo
+  project: insurancemockservice
+  local: true
