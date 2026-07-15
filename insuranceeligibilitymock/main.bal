@@ -1,14 +1,8 @@
 import ballerina/http;
-import ballerina/io;
 import ballerina/log;
 
 listener http:Listener insuranceListener = check new http:Listener(8290);
 
-final byte[] & readonly openApiSpec = check io:fileReadBytes("resources/openapi.yaml");
-
-@http:ServiceConfig {
-    openApiDefinition: openApiSpec
-}
 service /insurance on insuranceListener {
 
     // Get eligibility status for a patient
